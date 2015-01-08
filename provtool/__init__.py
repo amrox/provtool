@@ -1,7 +1,10 @@
+from __future__ import absolute_import, print_function
+
 import os
 import sys
 import logging
 import plistlib
+import fnmatch
 
 DEFAULT_PROVPROF_DIR = os.path.expanduser('~/Library/MobileDevice/Provisioning Profiles')
 
@@ -30,12 +33,16 @@ def name(filePath):
     return plist['Name']
 
 
-def path(provName, path=DEFAULT_PROVPROF_DIR):
+def path(provName, path=DEFAULT_PROVPROF_DIR, patternMatch=False):
+    paths = []
     for f in os.listdir(path):
         if isProvFile(f):
             filePath = os.path.join(path, f)
-            if name(filePath) == provName:
-                print filePath
+            if not patternMatch and name(filePath) == provName:
+                paths.append(filePath)
+            elif patternMatch and fnmatch.fnmatch(name(filePath), provName):
+                paths.append(filePath)
+    return paths
 
 
 def uuid(path):
@@ -44,56 +51,15 @@ def uuid(path):
         err = '%s is not a Provisioning Profile' % (fullpath)
         #sys.stderr.write(err)
         raise ValueError(err)  # TODO: ValueError the right kind of exception?
-        return
+        return None
     plistString = plistStringFromProvFile(fullpath)
     plist = plistlib.readPlistFromString(plistString)
-    print plist['UUID']
+    return plist['UUID']
 
 
 def list(dir=DEFAULT_PROVPROF_DIR):
-    print "%s:" % dir
+    l = []
     for f in os.listdir(dir):
         if isProvFile(f):
-            print "%s : '%s'" % (f, name(os.path.join(dir, f)))
-
-
-COMMANDS = ('list', 'path', 'uuid')
-
-
-def usage(command=None):
-    print """
-usage: provtool <subcommand>
-
-Available subcommands are:
-    list            List installed Provisioning Profiles.
-    path <name>     Get the path(s) of Provisioning Profile by name.
-    uuid <path>     Display the UDID of a Provisioning Profile by path.
-"""
-
-
-def main():
-    if len(sys.argv) == 1:
-        usage()
-        exit(1)
-
-    command = sys.argv[1]
-    if command not in COMMANDS:
-        usage()
-    elif command == 'list':
-        list()
-    elif command == 'path':
-        if len(sys.argv) < 2:
-            usage(command)
-            exit(1)
-        else:
-            path(sys.argv[2])
-    elif command == 'uuid':
-        if len(sys.argv) < 2:
-            usage(command)
-            exit(1)
-        else:
-            uuid(sys.argv[2])
-
-
-if __name__ == "__main__":
-    main()
+            l.append("%s : '%s'" % (f, name(os.path.join(dir, f))))
+    return l
